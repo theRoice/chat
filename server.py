@@ -11,41 +11,49 @@ separator_token = "<SEP>"
 
 # Initialization
 client_sockets = set()
-s = socket.socket()
 
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.bind((SERVER_HOST, SERVER_PORT))
-
-s.listen(5)
+server_socket = socket.socket()
+server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server_socket.bind((SERVER_HOST, SERVER_PORT))
+server_socket.listen(5)
 
 print(f"[*] Listening as {SERVER_HOST}:{SERVER_PORT}")
 
-def listen_for_client(cs):
+def relay_from_client(source_client_socket: socket.socket):
     while True:
         try:
-            message = cs.recv(1024).decode()
-        except Exception as e:
-            print(f"[!] Error: {e}")
-            client_sockets.remove(cs)
-        else:
-            msg = message.replace(separator_token, ": ")
-
-        for client_socket in client_sockets:
-            client_socket.send(msg.encode())
-
+            incoming_bytes = source_client_socket.recv(4096)
+            if not incoming_bytes:
+                raise ConnectionError("Client disconnected")
+        except Exception as error:
+            print(f"[!] Client error/disconnect: {error}")
+            if source_client_socket in client_sockets:
+                client_sockets.remove(source_client_socket)
+            try:
+                source_client_socket.close()
+            except Exception:
+                pass
+            break    
+        
+        for destination_client_socket in list(client_sockets):
+            if destination_client_socket is source_client_socket:
+                continue
+            try:
+                destination_client_socket.sendall(incoming_bytes)
+            except Exception:
+                try:
+                    destination_client_socket.close()
+                except Exception:
+                    pass
+                if destination_client_socket in client_sockets:
+                    client_sockets.remove(destination_client_socket)
 
 while True:
-    client_socket, client_address = s.accept()
+    client_socket, client_address = server_socket.accept()
 
     print(f"[+] {client_address} connected.")
     client_sockets.add(client_socket)
     
-    t = Thread(target=listen_for_client, args=(client_socket,))
+    client_thread = Thread(target=relay_from_client, args=(client_socket,), daemon=True)
 
-    t.daemon = True
-    t.start()
-
-for cs in client_sockets:
-    cs.close()
-
-s.close()
+    client_thread.start()
