@@ -13,7 +13,7 @@ separator_token = "<SEP>"
 client_sockets = set()
 s = socket.socket()
 
-s.setsocketopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((SERVER_HOST, SERVER_PORT))
 
 s.listen(5)
