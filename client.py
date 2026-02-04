@@ -436,7 +436,7 @@ class TwoClientChatGui:
             self._append_log("[local] Connect first.")
             return
 
-        # Private exponent: 256 bits is fine for a demo even with 2048-bit p.
+        # Private exponent
         self.dh_private_exponent = random.getrandbits(256)
         self.dh_public_value = modular_exponentiation(DH_GENERATOR_G, self.dh_private_exponent, DH_PRIME_P)
 
